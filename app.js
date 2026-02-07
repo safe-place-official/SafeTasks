@@ -8,6 +8,12 @@ const defaultState = {
   achievements: {
     unlocked: [],
   },
+  ui: {
+    theme: "dark",
+  },
+  filters: {
+    query: "",
+  },
   pomodoro: {
     mode: "focus",
     remaining: 25 * 60,
@@ -79,6 +85,21 @@ const elements = {
   importInput: document.getElementById("import-data"),
   statsTab: document.getElementById("tab-stats"),
   pomodoroTab: document.getElementById("tab-pomodoro"),
+  todayDate: document.getElementById("today-date"),
+  globalSearch: document.getElementById("global-search"),
+  clearSearch: document.getElementById("clear-search"),
+  themeToggle: document.getElementById("theme-toggle"),
+  quickTaskForm: document.getElementById("quick-task-form"),
+  activeTotal: document.getElementById("active-total"),
+  dueToday: document.getElementById("due-today"),
+  overdueCount: document.getElementById("overdue-count"),
+  focusScore: document.getElementById("focus-score"),
+  priorityList: document.getElementById("priority-list"),
+  upcomingList: document.getElementById("upcoming-list"),
+  activityList: document.getElementById("activity-list"),
+  focusBlocks: document.getElementById("focus-blocks"),
+  focusType: document.getElementById("focus-type"),
+  focusTip: document.getElementById("focus-tip"),
 };
 
 // --------- Helpers ---------
@@ -104,6 +125,14 @@ function normalizeState(rawState) {
     achievements: {
       unlocked: Array.isArray(rawState?.achievements?.unlocked) ? rawState.achievements.unlocked : [],
     },
+    ui: {
+      ...base.ui,
+      ...(rawState?.ui || {}),
+    },
+    filters: {
+      ...base.filters,
+      ...(rawState?.filters || {}),
+    },
     pomodoro: {
       ...base.pomodoro,
       ...(rawState?.pomodoro || {}),
@@ -116,7 +145,13 @@ function normalizeState(rawState) {
       ...(rawState?.modules || {}),
     },
   };
-  normalized.tasks = Array.isArray(rawState?.tasks) ? rawState.tasks : [];
+  normalized.tasks = Array.isArray(rawState?.tasks)
+    ? rawState.tasks.map((task) => ({
+        ...task,
+        priority: task.priority || "medium",
+        tags: Array.isArray(task.tags) ? task.tags : [],
+      }))
+    : [];
   normalized.schedule = Array.isArray(rawState?.schedule) ? rawState.schedule : [];
   return normalized;
 }
@@ -200,6 +235,50 @@ function typeLabel(type) {
   return map[type] || "Задача";
 }
 
+function priorityLabel(priority) {
+  const map = {
+    high: "Высокий приоритет",
+    medium: "Средний приоритет",
+    low: "Низкий приоритет",
+  };
+  return map[priority] || "Средний приоритет";
+}
+
+function priorityRank(priority) {
+  const map = {
+    high: 0,
+    medium: 1,
+    low: 2,
+  };
+  return map[priority] ?? 1;
+}
+
+function parseTags(value) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function matchesQuery(task, query) {
+  if (!query) return true;
+  const haystack = `${task.title} ${task.type} ${task.tags?.join(" ")}`.toLowerCase();
+  return haystack.includes(query.toLowerCase());
+}
+
+function dueState(task) {
+  if (task.completed) return "none";
+  const now = new Date();
+  const due = new Date(task.dueDate);
+  if (due < now) return "overdue";
+  const soon = new Date(now);
+  soon.setDate(now.getDate() + 1);
+  if (due <= soon) return "due";
+  return "none";
+}
+
 function compareTasks(a, b) {
   return new Date(a.dueDate) - new Date(b.dueDate);
 }
@@ -225,7 +304,7 @@ function getCompletionStats(periodDays) {
 
 // --------- Tasks ---------
 
-function addTask(title, type) {
+function addTask(title, type, options = {}) {
   updateState((draft) => {
     const task = {
       id: crypto.randomUUID(),
@@ -235,6 +314,8 @@ function addTask(title, type) {
       dueDate: dueDateForType(type),
       completed: false,
       completedAt: null,
+      priority: options.priority || "medium",
+      tags: Array.isArray(options.tags) ? options.tags : [],
     };
     draft.tasks.push(task);
   });
@@ -265,6 +346,8 @@ function editTask(id) {
   const newTitle = prompt("Обнови текст задачи:", task.title);
   if (!newTitle) return;
   const newType = prompt("Тип: daily / weekly / monthly / yearly", task.type);
+  const newPriority = prompt("Приоритет: high / medium / low", task.priority);
+  const newTags = prompt("Теги через запятую", task.tags.join(", "));
   updateState((draft) => {
     const target = draft.tasks.find((item) => item.id === id);
     if (!target) return;
@@ -274,6 +357,12 @@ function editTask(id) {
       target.dueDate = dueDateForType(newType);
     }
     target.title = newTitle;
+    if (newPriority && ["high", "medium", "low"].includes(newPriority)) {
+      target.priority = newPriority;
+    }
+    if (typeof newTags === "string") {
+      target.tags = parseTags(newTags);
+    }
     if (target.completed && previousType !== target.type) {
       const delta = xpForType(target.type) - xpForType(previousType);
       draft.xp.total = Math.max(0, draft.xp.total + delta);
@@ -499,17 +588,32 @@ function drawWeeklyChart() {
 // --------- UI ---------
 
 function renderTasks() {
+  const query = SafeTasksState.filters.query;
   Object.entries(elements.taskLists).forEach(([type, lists]) => {
     lists.pending.innerHTML = "";
     lists.completed.innerHTML = "";
 
-    const pendingTasks = tasksByType(type).filter((task) => !task.completed).sort(compareTasks);
+    const pendingTasks = tasksByType(type)
+      .filter((task) => !task.completed)
+      .filter((task) => matchesQuery(task, query))
+      .sort(compareTasks);
     const completed = tasksByType(type)
       .filter((task) => task.completed)
+      .filter((task) => matchesQuery(task, query))
       .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
     pendingTasks.forEach((task) => {
       const item = document.createElement("li");
+      const due = dueState(task);
+      const dueBadge =
+        due === "overdue"
+          ? `<span class="badge badge--overdue">Просрочено</span>`
+          : due === "due"
+            ? `<span class="badge badge--due">Срок сегодня</span>`
+            : "";
+      const tags = task.tags?.length
+        ? task.tags.map((tag) => `<span class="badge badge--tag">#${tag}</span>`).join("")
+        : "";
       item.className = "task-item";
       item.innerHTML = `
         <input type="checkbox" aria-label="Выполнено" />
@@ -518,6 +622,11 @@ function renderTasks() {
           <div class="task-meta">
             <span class="badge">${typeLabel(task.type)}</span>
             <span>до ${formatDateTime(new Date(task.dueDate))}</span>
+          </div>
+          <div class="badges">
+            <span class="badge badge--priority-${task.priority}">${priorityLabel(task.priority)}</span>
+            ${dueBadge}
+            ${tags}
           </div>
         </div>
         <div class="actions">
@@ -572,6 +681,103 @@ function renderStats() {
   elements.completionRate.textContent = `${getCompletionStats(period)}%`;
   drawDailyChart();
   drawWeeklyChart();
+}
+
+function renderDashboard() {
+  if (!elements.activeTotal) return;
+  const active = SafeTasksState.tasks.filter((task) => !task.completed);
+  const overdue = active.filter((task) => dueState(task) === "overdue");
+  const dueToday = active.filter((task) => {
+    const due = new Date(task.dueDate);
+    return dueState(task) !== "overdue" && startOfDay(due).getTime() === startOfDay(new Date()).getTime();
+  });
+  elements.activeTotal.textContent = active.length;
+  elements.dueToday.textContent = dueToday.length;
+  elements.overdueCount.textContent = overdue.length;
+  elements.focusScore.textContent = `${getCompletionStats(7)}%`;
+
+  if (elements.priorityList) {
+    const priorityTasks = active
+      .filter((task) => matchesQuery(task, SafeTasksState.filters.query))
+      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || compareTasks(a, b))
+      .slice(0, 5);
+    elements.priorityList.innerHTML = "";
+    priorityTasks.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "task-item";
+      item.innerHTML = `
+        <div>
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="badge badge--priority-${task.priority}">${priorityLabel(task.priority)}</span>
+            <span>до ${formatDateTime(new Date(task.dueDate))}</span>
+          </div>
+        </div>
+      `;
+      elements.priorityList.appendChild(item);
+    });
+  }
+
+  if (elements.upcomingList) {
+    const upcoming = active
+      .filter((task) => matchesQuery(task, SafeTasksState.filters.query))
+      .filter((task) => {
+        const due = new Date(task.dueDate);
+        const now = new Date();
+        const week = new Date(now);
+        week.setDate(now.getDate() + 7);
+        return due >= now && due <= week;
+      })
+      .sort(compareTasks)
+      .slice(0, 6);
+    elements.upcomingList.innerHTML = "";
+    upcoming.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "task-item";
+      item.innerHTML = `
+        <div>
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="badge">${typeLabel(task.type)}</span>
+            <span>до ${formatDateTime(new Date(task.dueDate))}</span>
+          </div>
+        </div>
+      `;
+      elements.upcomingList.appendChild(item);
+    });
+  }
+
+  if (elements.activityList) {
+    const recent = SafeTasksState.tasks
+      .filter((task) => task.completed)
+      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+      .slice(0, 6);
+    elements.activityList.innerHTML = "";
+    recent.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "activity-item";
+      item.innerHTML = `
+        <strong>${task.title}</strong>
+        <span class="hint">${typeLabel(task.type)} · ${formatDateTime(new Date(task.completedAt))}</span>
+      `;
+      elements.activityList.appendChild(item);
+    });
+  }
+
+  if (elements.focusBlocks && elements.focusType && elements.focusTip) {
+    const blocks = Math.min(Math.max(Math.ceil(active.length / 3), 1), 6);
+    elements.focusBlocks.textContent = `${blocks} блока`;
+    const typeCount = active.reduce((acc, task) => {
+      acc[task.type] = (acc[task.type] || 0) + 1;
+      return acc;
+    }, {});
+    const topType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    elements.focusType.textContent = topType ? typeLabel(topType) : "—";
+    elements.focusTip.textContent =
+      active.length > 5
+        ? "Сократи список: выбери 3 задачи и отметь остальные как фоновые."
+        : "Сделай один помодоро для самой важной задачи, затем возьми легкую.";
+  }
 }
 
 function renderXp() {
@@ -632,6 +838,11 @@ function renderPomodoro() {
 }
 
 function render() {
+  applyTheme();
+  updateTodayDate();
+  if (elements.globalSearch) {
+    elements.globalSearch.value = SafeTasksState.filters.query;
+  }
   renderTasks();
   renderSummary();
   renderStats();
@@ -642,6 +853,7 @@ function render() {
   renderPomodoro();
   renderModuleToggles();
   applyModuleVisibility();
+  renderDashboard();
 }
 
 function renderModuleToggles() {
@@ -649,6 +861,22 @@ function renderModuleToggles() {
     const moduleName = toggle.dataset.moduleToggle;
     toggle.checked = Boolean(SafeTasksState.modules[moduleName]);
   });
+}
+
+function applyTheme() {
+  document.body.dataset.theme = SafeTasksState.ui.theme;
+  if (elements.themeToggle) {
+    elements.themeToggle.textContent = SafeTasksState.ui.theme === "light" ? "Тема: День" : "Тема: Ночь";
+  }
+}
+
+function updateTodayDate() {
+  if (!elements.todayDate) return;
+  elements.todayDate.textContent = new Intl.DateTimeFormat("ru-RU", {
+    weekday: "short",
+    day: "2-digit",
+    month: "long",
+  }).format(new Date());
 }
 
 function applyModuleVisibility() {
@@ -673,7 +901,7 @@ function applyModuleVisibility() {
 
   const active = document.querySelector(".tab-button.is-active");
   if (active?.classList.contains("is-hidden")) {
-    switchScreen("daily");
+    switchScreen("dashboard");
   }
 }
 
@@ -793,8 +1021,16 @@ elements.taskForms.forEach((form) => {
     const titleInput = form.querySelector(".task-title-input");
     const title = titleInput.value.trim();
     if (!title) return;
-    addTask(title, form.dataset.taskType);
+    const typeInput = form.querySelector(".task-type-input");
+    const priorityInput = form.querySelector(".task-priority-input");
+    const tagsInput = form.querySelector(".task-tags-input");
+    const type = typeInput?.value || form.dataset.taskType;
+    addTask(title, type, {
+      priority: priorityInput?.value || "medium",
+      tags: parseTags(tagsInput?.value || ""),
+    });
     titleInput.value = "";
+    if (tagsInput) tagsInput.value = "";
   });
 });
 
@@ -853,6 +1089,27 @@ elements.pomodoroStart.addEventListener("click", startPomodoro);
 elements.pomodoroPause.addEventListener("click", pausePomodoro);
 
 elements.pomodoroReset.addEventListener("click", resetPomodoro);
+
+elements.globalSearch?.addEventListener("input", (event) => {
+  const query = event.target.value.trim();
+  updateState((draft) => {
+    draft.filters.query = query;
+  });
+});
+
+elements.clearSearch?.addEventListener("click", () => {
+  if (!elements.globalSearch) return;
+  elements.globalSearch.value = "";
+  updateState((draft) => {
+    draft.filters.query = "";
+  });
+});
+
+elements.themeToggle?.addEventListener("click", () => {
+  updateState((draft) => {
+    draft.ui.theme = draft.ui.theme === "light" ? "dark" : "light";
+  });
+});
 
 window.addEventListener("load", () => {
   render();

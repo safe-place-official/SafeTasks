@@ -9,12 +9,34 @@
 <body>
   <div class="app">
     <header class="app__header">
-      <div>
-        <h1>SafeTasks</h1>
-        <p class="tagline">Анти‑прокрастинация в киберпанк‑режиме</p>
+      <div class="header-brand">
+        <div>
+          <h1>SafeTasks</h1>
+          <p class="tagline">Анти‑прокрастинация в киберпанк‑режиме</p>
+        </div>
+        <div class="header-badge">
+          <span class="label">Сегодня</span>
+          <span id="today-date" class="value">--</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <label class="search">
+          <span class="sr-only">Поиск</span>
+          <input id="global-search" type="search" placeholder="Поиск по задачам, тегам, типам..." />
+          <button id="clear-search" class="icon-button" type="button" aria-label="Очистить поиск">✕</button>
+        </label>
+        <div class="header-controls">
+          <button id="theme-toggle" class="btn ghost" type="button">Тема: Ночь</button>
+          <div class="user-card">
+            <span class="label">Профиль</span>
+            <strong>Operator Safe</strong>
+            <span class="hint">Личный режим</span>
+          </div>
+        </div>
       </div>
       <nav class="tabs">
-        <button class="tab-button is-active" data-screen="daily">Дневные</button>
+        <button class="tab-button is-active" data-screen="dashboard">Дашборд</button>
+        <button class="tab-button" data-screen="daily">Дневные</button>
         <button class="tab-button" data-screen="weekly">Недельные</button>
         <button class="tab-button" data-screen="monthly">Месячные</button>
         <button class="tab-button" data-screen="yearly">Годовые</button>
@@ -26,13 +48,124 @@
     </header>
 
     <main>
-      <section class="screen is-active" id="screen-daily">
+      <section class="screen is-active" id="screen-dashboard">
+        <div class="grid dashboard-grid">
+          <section class="card quick-capture">
+            <div class="card__header">
+              <h2>Быстрый захват</h2>
+              <span class="hint">Запиши задачу за 10 секунд</span>
+            </div>
+            <form id="quick-task-form" class="task-form task-form--compact" data-task-type="daily">
+              <div class="form-row">
+                <input type="text" class="task-title-input" placeholder="Что нужно сделать?" required />
+                <select class="task-type-input">
+                  <option value="daily">Дневная</option>
+                  <option value="weekly">Недельная</option>
+                  <option value="monthly">Месячная</option>
+                  <option value="yearly">Годовая</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <select class="task-priority-input">
+                  <option value="high">Высокий приоритет</option>
+                  <option value="medium" selected>Средний приоритет</option>
+                  <option value="low">Низкий приоритет</option>
+                </select>
+                <input type="text" class="task-tags-input" placeholder="Теги через запятую" />
+              </div>
+              <button type="submit" class="btn">Добавить задачу</button>
+            </form>
+          </section>
+
+          <section class="card highlights">
+            <div class="card__header">
+              <h2>Сводка дня</h2>
+              <span class="hint">Главные сигналы</span>
+            </div>
+            <div class="highlight-grid">
+              <div>
+                <span class="label">Активные задачи</span>
+                <span id="active-total" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">На сегодня</span>
+                <span id="due-today" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">Просрочено</span>
+                <span id="overdue-count" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">Фокус-пульс</span>
+                <span id="focus-score" class="value">0%</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card__header">
+              <h2>Топ-приоритеты</h2>
+              <span class="hint">Срочные и важные</span>
+            </div>
+            <ul id="priority-list" class="task-list task-list--compact"></ul>
+          </section>
+
+          <section class="card">
+            <div class="card__header">
+              <h2>Ближайшие дедлайны</h2>
+              <span class="hint">Следующие 7 дней</span>
+            </div>
+            <ul id="upcoming-list" class="task-list task-list--compact"></ul>
+          </section>
+
+          <section class="card">
+            <div class="card__header">
+              <h2>Лента активности</h2>
+              <span class="hint">Последние достижения</span>
+            </div>
+            <ul id="activity-list" class="activity-list"></ul>
+          </section>
+
+          <section class="card focus-plan">
+            <div class="card__header">
+              <h2>План фокуса</h2>
+              <span class="hint">Как выглядит идеальный день</span>
+            </div>
+            <div class="focus-plan__content">
+              <div>
+                <span class="label">Рекомендуемые блоки</span>
+                <strong id="focus-blocks">0</strong>
+                <p class="hint">Подстрой под текущую загрузку.</p>
+              </div>
+              <div>
+                <span class="label">Лучший тип задач</span>
+                <strong id="focus-type">—</strong>
+                <p class="hint">Опираясь на активные задачи.</p>
+              </div>
+              <div>
+                <span class="label">Совет от SafeTasks</span>
+                <p id="focus-tip" class="hint">Начни день с одной задачи высокого приоритета.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-daily">
         <div class="task-layout">
           <div class="column">
             <section class="card">
               <h2>Новая дневная задача</h2>
               <form class="task-form" data-task-type="daily">
-                <input type="text" class="task-title-input" placeholder="Что сделать сегодня?" required />
+                <div class="form-row">
+                  <input type="text" class="task-title-input" placeholder="Что сделать сегодня?" required />
+                  <select class="task-priority-input">
+                    <option value="high">Высокий</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="low">Низкий</option>
+                  </select>
+                </div>
+                <input type="text" class="task-tags-input" placeholder="Теги через запятую" />
                 <button type="submit" class="btn">Добавить</button>
               </form>
               <div class="summary">
@@ -119,7 +252,15 @@
             <section class="card">
               <h2>Новая недельная задача</h2>
               <form class="task-form" data-task-type="weekly">
-                <input type="text" class="task-title-input" placeholder="Что важно на этой неделе?" required />
+                <div class="form-row">
+                  <input type="text" class="task-title-input" placeholder="Что важно на этой неделе?" required />
+                  <select class="task-priority-input">
+                    <option value="high">Высокий</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="low">Низкий</option>
+                  </select>
+                </div>
+                <input type="text" class="task-tags-input" placeholder="Теги через запятую" />
                 <button type="submit" class="btn">Добавить</button>
               </form>
               <div class="summary">
@@ -163,7 +304,15 @@
             <section class="card">
               <h2>Новая месячная задача</h2>
               <form class="task-form" data-task-type="monthly">
-                <input type="text" class="task-title-input" placeholder="План на месяц" required />
+                <div class="form-row">
+                  <input type="text" class="task-title-input" placeholder="План на месяц" required />
+                  <select class="task-priority-input">
+                    <option value="high">Высокий</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="low">Низкий</option>
+                  </select>
+                </div>
+                <input type="text" class="task-tags-input" placeholder="Теги через запятую" />
                 <button type="submit" class="btn">Добавить</button>
               </form>
               <div class="summary">
@@ -207,7 +356,15 @@
             <section class="card">
               <h2>Новая годовая задача</h2>
               <form class="task-form" data-task-type="yearly">
-                <input type="text" class="task-title-input" placeholder="К чему идти весь год?" required />
+                <div class="form-row">
+                  <input type="text" class="task-title-input" placeholder="К чему идти весь год?" required />
+                  <select class="task-priority-input">
+                    <option value="high">Высокий</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="low">Низкий</option>
+                  </select>
+                </div>
+                <input type="text" class="task-tags-input" placeholder="Теги через запятую" />
                 <button type="submit" class="btn">Добавить</button>
               </form>
               <div class="summary">
