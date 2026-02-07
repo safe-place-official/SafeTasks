@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeTasks</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <div>
+        <h1>SafeTasks</h1>
+        <p class="tagline">Анти‑прокрастинация в киберпанк‑режиме</p>
+      </div>
+      <nav class="tabs">
+        <button class="tab-button is-active" data-screen="today">Сегодня</button>
+        <button class="tab-button" data-screen="stats">Статистика</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="screen is-active" id="screen-today">
+        <div class="grid">
+          <section class="card">
+            <h2>Новая задача</h2>
+            <form id="task-form" class="task-form">
+              <input type="text" id="task-title" placeholder="Что сделать?" required />
+              <select id="task-type">
+                <option value="daily">Дневные</option>
+                <option value="weekly">Недельные</option>
+                <option value="monthly">Месячные</option>
+                <option value="yearly">Годовые</option>
+              </select>
+              <button type="submit" class="btn">Добавить</button>
+            </form>
+            <div class="summary">
+              <div>
+                <span class="label">Выполнено</span>
+                <span id="completed-count" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">В процессе</span>
+                <span id="pending-count" class="value">0</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card__header">
+              <h2>Задачи</h2>
+              <span class="hint">Сортировка по срокам</span>
+            </div>
+            <ul id="task-list" class="task-list"></ul>
+          </section>
+
+          <section class="card pomodoro">
+            <div class="card__header">
+              <h2>Pomodoro 25/5</h2>
+              <span id="pomodoro-state" class="hint">Фокус</span>
+            </div>
+            <div class="pomodoro__time" id="pomodoro-time">25:00</div>
+            <div class="pomodoro__controls">
+              <button id="pomodoro-start" class="btn">Старт</button>
+              <button id="pomodoro-pause" class="btn ghost">Пауза</button>
+              <button id="pomodoro-reset" class="btn ghost">Сброс</button>
+            </div>
+            <div class="progress">
+              <div id="pomodoro-progress" class="progress__bar"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-stats">
+        <div class="grid">
+          <section class="card">
+            <h2>Статистика</h2>
+            <div class="stats-row">
+              <div>
+                <span class="label">Streak (дни)</span>
+                <span id="streak-count" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">Процент выполнения</span>
+                <span id="completion-rate" class="value">0%</span>
+              </div>
+              <div>
+                <label class="label" for="period-select">Период</label>
+                <select id="period-select">
+                  <option value="7">7 дней</option>
+                  <option value="30" selected>30 дней</option>
+                  <option value="90">90 дней</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart">
+              <h3>Выполненные задачи по дням</h3>
+              <canvas id="daily-chart" width="600" height="220"></canvas>
+            </div>
+            <div class="chart">
+              <h3>Продуктивность по неделям</h3>
+              <canvas id="weekly-chart" width="600" height="220"></canvas>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Достижения</h2>
+            <ul id="achievement-list" class="achievement-list"></ul>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Created by SafePlace</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
