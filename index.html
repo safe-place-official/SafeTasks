@@ -18,6 +18,7 @@
         <button class="tab-button" data-screen="weekly">Недельные</button>
         <button class="tab-button" data-screen="monthly">Месячные</button>
         <button class="tab-button" data-screen="yearly">Годовые</button>
+        <button class="tab-button" data-screen="pomodoro">Помодоро</button>
         <button class="tab-button" data-screen="schedule">Расписание</button>
         <button class="tab-button" data-screen="stats">Статистика</button>
       </nav>
@@ -45,21 +46,6 @@
               </div>
             </section>
 
-            <section class="card pomodoro">
-              <div class="card__header">
-                <h2>Pomodoro 25/5</h2>
-                <span id="pomodoro-state" class="hint">Фокус</span>
-              </div>
-              <div class="pomodoro__time" id="pomodoro-time">25:00</div>
-              <div class="pomodoro__controls">
-                <button id="pomodoro-start" class="btn">Старт</button>
-                <button id="pomodoro-pause" class="btn ghost">Пауза</button>
-                <button id="pomodoro-reset" class="btn ghost">Сброс</button>
-              </div>
-              <div class="progress">
-                <div id="pomodoro-progress" class="progress__bar"></div>
-              </div>
-            </section>
           </div>
 
           <div class="column">
@@ -81,6 +67,48 @@
               <ul id="daily-completed-list" class="task-list task-list--completed"></ul>
             </section>
           </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-pomodoro">
+        <div class="grid">
+          <section class="card pomodoro pomodoro--red">
+            <div class="card__header">
+              <h2>Pomodoro 25/5</h2>
+              <span id="pomodoro-state" class="hint">Фокус</span>
+            </div>
+            <div class="pomodoro__time" id="pomodoro-time">25:00</div>
+            <div class="pomodoro__controls">
+              <button id="pomodoro-start" class="btn btn--red">Старт</button>
+              <button id="pomodoro-pause" class="btn ghost">Пауза</button>
+              <button id="pomodoro-reset" class="btn ghost">Сброс</button>
+            </div>
+            <div class="progress progress--red">
+              <div id="pomodoro-progress" class="progress__bar"></div>
+            </div>
+          </section>
+
+          <section class="card focus-ritual">
+            <div class="card__header">
+              <h2>Ритуал фокуса</h2>
+              <span class="hint">Запусти сессию правильно</span>
+            </div>
+            <ul class="checklist">
+              <li><label><input type="checkbox" /> Убери уведомления на 25 минут</label></li>
+              <li><label><input type="checkbox" /> Подготовь воду и таймер</label></li>
+              <li><label><input type="checkbox" /> Запиши одну ключевую задачу</label></li>
+              <li><label><input type="checkbox" /> Включи фоновый шум</label></li>
+            </ul>
+          </section>
+
+          <section class="card focus-note">
+            <div class="card__header">
+              <h2>Фокус-заметка</h2>
+              <span class="hint">Коротко: что важно сейчас</span>
+            </div>
+            <textarea rows="6" placeholder="Например: закрыть задачу по лендингу за 2 помодоро."></textarea>
+            <p class="hint">Не хранится в браузере — используй как быстрый черновик.</p>
+          </section>
         </div>
       </section>
 
