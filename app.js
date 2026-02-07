@@ -13,9 +13,19 @@ const defaultState = {
     remaining: 25 * 60,
     running: false,
   },
+  xp: {
+    total: 0,
+  },
+  modules: {
+    pomodoro: true,
+    xp: true,
+    achievements: true,
+    stats: true,
+    heatmap: true,
+  },
 };
 
-const state = loadState();
+let SafeTasksState = loadState();
 let pomodoroInterval = null;
 
 const elements = {
@@ -45,6 +55,11 @@ const elements = {
   dailyChart: document.getElementById("daily-chart"),
   weeklyChart: document.getElementById("weekly-chart"),
   achievementList: document.getElementById("achievement-list"),
+  xpLevel: document.getElementById("xp-level"),
+  xpTotal: document.getElementById("xp-total"),
+  xpNext: document.getElementById("xp-next"),
+  xpProgressBar: document.getElementById("xp-progress-bar"),
+  heatmapGrid: document.getElementById("heatmap-grid"),
   scheduleForm: document.getElementById("schedule-form"),
   scheduleDay: document.getElementById("schedule-day"),
   scheduleTime: document.getElementById("schedule-time"),
@@ -59,25 +74,80 @@ const elements = {
   pomodoroReset: document.getElementById("pomodoro-reset"),
   tabButtons: document.querySelectorAll(".tab-button"),
   screens: document.querySelectorAll(".screen"),
+  moduleToggles: document.querySelectorAll("[data-module-toggle]"),
+  exportButton: document.getElementById("export-data"),
+  importInput: document.getElementById("import-data"),
+  statsTab: document.getElementById("tab-stats"),
+  pomodoroTab: document.getElementById("tab-pomodoro"),
+  xpTab: document.getElementById("tab-xp"),
+  heatmapTab: document.getElementById("tab-heatmap"),
+  achievementsTab: document.getElementById("tab-achievements"),
 };
 
 // --------- Helpers ---------
 
+function xpForType(type) {
+  const map = {
+    daily: 10,
+    weekly: 30,
+    monthly: 100,
+    yearly: 100,
+  };
+  return map[type] || 0;
+}
+
+function normalizeState(rawState) {
+  const base = structuredClone(defaultState);
+  const xpFromTasks = Array.isArray(rawState?.tasks)
+    ? rawState.tasks.reduce((total, task) => (task.completed ? total + xpForType(task.type) : total), 0)
+    : 0;
+  const normalized = {
+    ...base,
+    ...rawState,
+    achievements: {
+      unlocked: Array.isArray(rawState?.achievements?.unlocked) ? rawState.achievements.unlocked : [],
+    },
+    pomodoro: {
+      ...base.pomodoro,
+      ...(rawState?.pomodoro || {}),
+    },
+    xp: {
+      total: Number.isFinite(rawState?.xp?.total) ? Number(rawState.xp.total) : xpFromTasks,
+    },
+    modules: {
+      ...base.modules,
+      ...(rawState?.modules || {}),
+    },
+  };
+  normalized.tasks = Array.isArray(rawState?.tasks) ? rawState.tasks : [];
+  normalized.schedule = Array.isArray(rawState?.schedule) ? rawState.schedule : [];
+  return normalized;
+}
+
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return structuredClone(defaultState);
+    return normalizeState({});
   }
   try {
-    return { ...structuredClone(defaultState), ...JSON.parse(raw) };
+    return normalizeState(JSON.parse(raw));
   } catch (error) {
     console.error("Не удалось прочитать localStorage:", error);
-    return structuredClone(defaultState);
+    return normalizeState({});
   }
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(SafeTasksState));
+}
+
+function updateState(updater) {
+  const draft = structuredClone(SafeTasksState);
+  const updated = typeof updater === "function" ? updater(draft) || draft : updater;
+  SafeTasksState = normalizeState(updated);
+  syncAchievements(SafeTasksState);
+  saveState();
+  render();
 }
 
 function formatDate(date) {
@@ -138,7 +208,7 @@ function compareTasks(a, b) {
 }
 
 function tasksByType(type) {
-  return state.tasks.filter((task) => task.type === type);
+  return SafeTasksState.tasks.filter((task) => task.type === type);
 }
 
 function getCompletionStats(periodDays) {
@@ -146,7 +216,7 @@ function getCompletionStats(periodDays) {
   const start = new Date(now);
   start.setDate(start.getDate() - (periodDays - 1));
 
-  const relevant = state.tasks.filter((task) => {
+  const relevant = SafeTasksState.tasks.filter((task) => {
     const created = startOfDay(new Date(task.createdAt));
     return created >= start && created <= now;
   });
@@ -159,50 +229,59 @@ function getCompletionStats(periodDays) {
 // --------- Tasks ---------
 
 function addTask(title, type) {
-  const task = {
-    id: crypto.randomUUID(),
-    title,
-    type,
-    createdAt: new Date().toISOString(),
-    dueDate: dueDateForType(type),
-    completed: false,
-    completedAt: null,
-  };
-  state.tasks.push(task);
-  saveState();
-  render();
+  updateState((draft) => {
+    const task = {
+      id: crypto.randomUUID(),
+      title,
+      type,
+      createdAt: new Date().toISOString(),
+      dueDate: dueDateForType(type),
+      completed: false,
+      completedAt: null,
+    };
+    draft.tasks.push(task);
+  });
 }
 
 function toggleTask(id) {
-  const task = state.tasks.find((item) => item.id === id);
-  if (!task) return;
-  task.completed = !task.completed;
-  task.completedAt = task.completed ? new Date().toISOString() : null;
-  saveState();
-  render();
+  updateState((draft) => {
+    const task = draft.tasks.find((item) => item.id === id);
+    if (!task) return;
+    task.completed = !task.completed;
+    task.completedAt = task.completed ? new Date().toISOString() : null;
+    const delta = task.completed ? xpForType(task.type) : -xpForType(task.type);
+    draft.xp.total = Math.max(0, draft.xp.total + delta);
+  });
 }
 
 function deleteTask(id) {
-  const task = state.tasks.find((item) => item.id === id);
-  if (!task || task.completed) return;
-  state.tasks = state.tasks.filter((item) => item.id !== id);
-  saveState();
-  render();
+  updateState((draft) => {
+    const task = draft.tasks.find((item) => item.id === id);
+    if (!task || task.completed) return;
+    draft.tasks = draft.tasks.filter((item) => item.id !== id);
+  });
 }
 
 function editTask(id) {
-  const task = state.tasks.find((item) => item.id === id);
+  const task = SafeTasksState.tasks.find((item) => item.id === id);
   if (!task) return;
   const newTitle = prompt("Обнови текст задачи:", task.title);
   if (!newTitle) return;
   const newType = prompt("Тип: daily / weekly / monthly / yearly", task.type);
-  if (newType && ["daily", "weekly", "monthly", "yearly"].includes(newType)) {
-    task.type = newType;
-    task.dueDate = dueDateForType(newType);
-  }
-  task.title = newTitle;
-  saveState();
-  render();
+  updateState((draft) => {
+    const target = draft.tasks.find((item) => item.id === id);
+    if (!target) return;
+    const previousType = target.type;
+    if (newType && ["daily", "weekly", "monthly", "yearly"].includes(newType)) {
+      target.type = newType;
+      target.dueDate = dueDateForType(newType);
+    }
+    target.title = newTitle;
+    if (target.completed && previousType !== target.type) {
+      const delta = xpForType(target.type) - xpForType(previousType);
+      draft.xp.total = Math.max(0, draft.xp.total + delta);
+    }
+  });
 }
 
 // --------- Schedule ---------
@@ -218,22 +297,22 @@ const dayOrder = [
 ];
 
 function addScheduleEntry(day, time, place, task) {
-  const entry = {
-    id: crypto.randomUUID(),
-    day,
-    time,
-    place,
-    task,
-  };
-  state.schedule.push(entry);
-  saveState();
-  renderSchedule();
+  updateState((draft) => {
+    const entry = {
+      id: crypto.randomUUID(),
+      day,
+      time,
+      place,
+      task,
+    };
+    draft.schedule.push(entry);
+  });
 }
 
 function renderSchedule() {
   if (!elements.scheduleList) return;
   elements.scheduleList.innerHTML = "";
-  const sorted = [...state.schedule].sort((a, b) => {
+  const sorted = [...SafeTasksState.schedule].sort((a, b) => {
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     if (dayDiff !== 0) return dayDiff;
     return a.time.localeCompare(b.time);
@@ -258,39 +337,38 @@ const achievementCatalog = [
     id: "first_task",
     title: "Первый шаг",
     description: "Создай свою первую задачу.",
-    condition: () => state.tasks.length >= 1,
+    condition: (snapshot) => snapshot.tasks.length >= 1,
   },
   {
     id: "three_done",
     title: "Триумф 3",
     description: "Выполни 3 задачи.",
-    condition: () => completedTasks().length >= 3,
+    condition: (snapshot) => completedTasks(snapshot).length >= 3,
   },
   {
     id: "ten_done",
     title: "Неоновый рывок",
     description: "Выполни 10 задач.",
-    condition: () => completedTasks().length >= 10,
+    condition: (snapshot) => completedTasks(snapshot).length >= 10,
   },
   {
     id: "streak_3",
     title: "Серия 3",
     description: "Собери streak из 3 дней.",
-    condition: () => calculateStreak() >= 3,
+    condition: (snapshot) => calculateStreak(snapshot) >= 3,
   },
 ];
 
-function completedTasks() {
-  return state.tasks.filter((task) => task.completed);
+function completedTasks(snapshot) {
+  return snapshot.tasks.filter((task) => task.completed);
 }
 
-function updateAchievements() {
+function syncAchievements(snapshot) {
   achievementCatalog.forEach((achievement) => {
-    if (achievement.condition() && !state.achievements.unlocked.includes(achievement.id)) {
-      state.achievements.unlocked.push(achievement.id);
+    if (achievement.condition(snapshot) && !snapshot.achievements.unlocked.includes(achievement.id)) {
+      snapshot.achievements.unlocked.push(achievement.id);
     }
   });
-  saveState();
 }
 
 function renderAchievements() {
@@ -298,7 +376,7 @@ function renderAchievements() {
   achievementCatalog.forEach((achievement) => {
     const item = document.createElement("li");
     item.className = "achievement";
-    if (state.achievements.unlocked.includes(achievement.id)) {
+    if (SafeTasksState.achievements.unlocked.includes(achievement.id)) {
       item.classList.add("unlocked");
     }
     item.innerHTML = `
@@ -311,8 +389,8 @@ function renderAchievements() {
 
 // --------- Stats ---------
 
-function calculateStreak() {
-  const completed = completedTasks()
+function calculateStreak(snapshot = SafeTasksState) {
+  const completed = completedTasks(snapshot)
     .map((task) => startOfDay(new Date(task.completedAt)))
     .filter(Boolean)
     .sort((a, b) => b - a);
@@ -331,13 +409,13 @@ function calculateStreak() {
   return streak;
 }
 
-function dailyCompletions(days = 7) {
+function dailyCompletions(days = 7, snapshot = SafeTasksState) {
   const now = startOfDay(new Date());
   const data = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const date = new Date(now);
     date.setDate(now.getDate() - i);
-    const count = completedTasks().filter((task) => {
+    const count = completedTasks(snapshot).filter((task) => {
       if (!task.completedAt) return false;
       return startOfDay(new Date(task.completedAt)).getTime() === date.getTime();
     }).length;
@@ -346,7 +424,7 @@ function dailyCompletions(days = 7) {
   return data;
 }
 
-function weeklyProductivity(weeks = 4) {
+function weeklyProductivity(weeks = 4, snapshot = SafeTasksState) {
   const now = startOfDay(new Date());
   const data = [];
 
@@ -356,7 +434,7 @@ function weeklyProductivity(weeks = 4) {
     const start = new Date(end);
     start.setDate(end.getDate() - 6);
 
-    const tasks = state.tasks.filter((task) => {
+    const tasks = snapshot.tasks.filter((task) => {
       const created = startOfDay(new Date(task.createdAt));
       return created >= start && created <= end;
     });
@@ -491,6 +569,7 @@ function renderSummary() {
 }
 
 function renderStats() {
+  if (!SafeTasksState.modules.stats) return;
   elements.streakCount.textContent = calculateStreak();
   const period = Number(elements.periodSelect.value);
   elements.completionRate.textContent = `${getCompletionStats(period)}%`;
@@ -498,24 +577,167 @@ function renderStats() {
   drawWeeklyChart();
 }
 
+function renderXp() {
+  if (!SafeTasksState.modules.xp) return;
+  const total = SafeTasksState.xp.total;
+  const level = Math.floor(total / 500);
+  const progress = total % 500;
+  elements.xpLevel.textContent = level;
+  elements.xpTotal.textContent = total;
+  elements.xpNext.textContent = `${500 - progress} XP`;
+  elements.xpProgressBar.style.width = `${(progress / 500) * 100}%`;
+}
+
+function buildHeatmapData() {
+  const days = 365;
+  const now = startOfDay(new Date());
+  const start = new Date(now);
+  start.setDate(now.getDate() - (days - 1));
+
+  const countMap = new Map();
+  completedTasks(SafeTasksState).forEach((task) => {
+    if (!task.completedAt) return;
+    const key = startOfDay(new Date(task.completedAt)).toDateString();
+    countMap.set(key, (countMap.get(key) || 0) + 1);
+  });
+
+  const data = [];
+  for (let i = 0; i < days; i += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const key = date.toDateString();
+    data.push({ date, count: countMap.get(key) || 0 });
+  }
+  return data;
+}
+
+function renderHeatmap() {
+  if (!SafeTasksState.modules.heatmap || !elements.heatmapGrid) return;
+  elements.heatmapGrid.innerHTML = "";
+  const data = buildHeatmapData();
+  data.forEach((item) => {
+    const cell = document.createElement("div");
+    const level = item.count === 0 ? 0 : item.count <= 2 ? 1 : item.count <= 5 ? 2 : 3;
+    cell.className = `heatmap-cell level-${level}`;
+    cell.title = `${formatDate(item.date)} — выполнено ${item.count} задач`;
+    elements.heatmapGrid.appendChild(cell);
+  });
+}
+
 function renderPomodoro() {
-  const minutes = String(Math.floor(state.pomodoro.remaining / 60)).padStart(2, "0");
-  const seconds = String(state.pomodoro.remaining % 60).padStart(2, "0");
+  const minutes = String(Math.floor(SafeTasksState.pomodoro.remaining / 60)).padStart(2, "0");
+  const seconds = String(SafeTasksState.pomodoro.remaining % 60).padStart(2, "0");
   elements.pomodoroTime.textContent = `${minutes}:${seconds}`;
-  elements.pomodoroState.textContent = state.pomodoro.mode === "focus" ? "Фокус" : "Перерыв";
-  const total = state.pomodoro.mode === "focus" ? 25 * 60 : 5 * 60;
-  const progress = ((total - state.pomodoro.remaining) / total) * 100;
+  elements.pomodoroState.textContent = SafeTasksState.pomodoro.mode === "focus" ? "Фокус" : "Перерыв";
+  const total = SafeTasksState.pomodoro.mode === "focus" ? 25 * 60 : 5 * 60;
+  const progress = ((total - SafeTasksState.pomodoro.remaining) / total) * 100;
   elements.pomodoroProgress.style.width = `${progress}%`;
 }
 
 function render() {
-  updateAchievements();
   renderTasks();
   renderSummary();
   renderStats();
   renderAchievements();
   renderSchedule();
+  renderXp();
+  renderHeatmap();
   renderPomodoro();
+  renderModuleToggles();
+  applyModuleVisibility();
+}
+
+function renderModuleToggles() {
+  elements.moduleToggles.forEach((toggle) => {
+    const moduleName = toggle.dataset.moduleToggle;
+    toggle.checked = Boolean(SafeTasksState.modules[moduleName]);
+  });
+}
+
+function applyModuleVisibility() {
+  const { modules } = SafeTasksState;
+  document.querySelectorAll("[data-module]").forEach((element) => {
+    const moduleName = element.dataset.module;
+    element.classList.toggle("is-hidden", !modules[moduleName]);
+  });
+
+  if (elements.statsTab) {
+    elements.statsTab.classList.toggle("is-hidden", !modules.stats);
+  }
+
+  if (elements.pomodoroTab) {
+    elements.pomodoroTab.classList.toggle("is-hidden", !modules.pomodoro);
+  }
+
+  if (elements.xpTab) {
+    elements.xpTab.classList.toggle("is-hidden", !modules.xp);
+  }
+
+  if (elements.heatmapTab) {
+    elements.heatmapTab.classList.toggle("is-hidden", !modules.heatmap);
+  }
+
+  if (elements.achievementsTab) {
+    elements.achievementsTab.classList.toggle("is-hidden", !modules.achievements);
+  }
+
+  const active = document.querySelector(".tab-button.is-active");
+  if (active?.classList.contains("is-hidden")) {
+    switchScreen("daily");
+  }
+}
+
+function validateImport(payload) {
+  return (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray(payload.tasks) &&
+    Array.isArray(payload.schedule) &&
+    typeof payload.pomodoro === "object" &&
+    typeof payload.achievements === "object" &&
+    Array.isArray(payload.achievements?.unlocked) &&
+    typeof payload.modules === "object" &&
+    typeof payload.xp === "object" &&
+    typeof payload.xp.total === "number"
+  );
+}
+
+function exportData() {
+  const data = JSON.stringify(SafeTasksState, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `safetasks-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!validateImport(parsed)) {
+        alert("Некорректная структура данных SafeTasks.");
+        return;
+      }
+      clearInterval(pomodoroInterval);
+      updateState(() => normalizeState(parsed));
+      if (SafeTasksState.pomodoro.running) {
+        updateState((draft) => {
+          draft.pomodoro.running = false;
+        });
+        startPomodoro();
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось прочитать JSON-файл.");
+    }
+  };
+  reader.readAsText(file);
 }
 
 function switchScreen(target) {
@@ -530,37 +752,47 @@ function switchScreen(target) {
 // --------- Pomodoro ---------
 
 function setPomodoroMode(mode) {
-  state.pomodoro.mode = mode;
-  state.pomodoro.remaining = mode === "focus" ? 25 * 60 : 5 * 60;
-  saveState();
-  renderPomodoro();
+  updateState((draft) => {
+    draft.pomodoro.mode = mode;
+    draft.pomodoro.remaining = mode === "focus" ? 25 * 60 : 5 * 60;
+    draft.pomodoro.running = false;
+  });
 }
 
 function startPomodoro() {
-  if (state.pomodoro.running) return;
-  state.pomodoro.running = true;
+  if (SafeTasksState.pomodoro.running) return;
+  updateState((draft) => {
+    draft.pomodoro.running = true;
+  });
   pomodoroInterval = setInterval(() => {
-    state.pomodoro.remaining -= 1;
-    if (state.pomodoro.remaining <= 0) {
-      state.pomodoro.running = false;
+    if (!SafeTasksState.pomodoro.running) return;
+    updateState((draft) => {
+      draft.pomodoro.remaining -= 1;
+      if (draft.pomodoro.remaining <= 0) {
+        draft.pomodoro.running = false;
+        draft.pomodoro.mode = draft.pomodoro.mode === "focus" ? "break" : "focus";
+        draft.pomodoro.remaining = draft.pomodoro.mode === "focus" ? 25 * 60 : 5 * 60;
+      }
+    });
+    if (!SafeTasksState.pomodoro.running) {
       clearInterval(pomodoroInterval);
-      setPomodoroMode(state.pomodoro.mode === "focus" ? "break" : "focus");
     }
-    saveState();
-    renderPomodoro();
   }, 1000);
 }
 
 function pausePomodoro() {
-  state.pomodoro.running = false;
+  updateState((draft) => {
+    draft.pomodoro.running = false;
+  });
   clearInterval(pomodoroInterval);
-  saveState();
-  renderPomodoro();
 }
 
 function resetPomodoro() {
-  pausePomodoro();
-  setPomodoroMode(state.pomodoro.mode);
+  updateState((draft) => {
+    draft.pomodoro.running = false;
+    draft.pomodoro.remaining = draft.pomodoro.mode === "focus" ? 25 * 60 : 5 * 60;
+  });
+  clearInterval(pomodoroInterval);
 }
 
 // --------- Events ---------
@@ -595,6 +827,37 @@ elements.tabButtons.forEach((button) => {
   button.addEventListener("click", () => switchScreen(button.dataset.screen));
 });
 
+elements.moduleToggles.forEach((toggle) => {
+  toggle.addEventListener("change", () => {
+    const moduleName = toggle.dataset.moduleToggle;
+    updateState((draft) => {
+      draft.modules[moduleName] = toggle.checked;
+      if (moduleName === "pomodoro" && !toggle.checked) {
+        draft.pomodoro.running = false;
+        draft.pomodoro.mode = "focus";
+        draft.pomodoro.remaining = 25 * 60;
+      }
+    });
+    if (moduleName === "pomodoro" && !toggle.checked) {
+      clearInterval(pomodoroInterval);
+    }
+  });
+});
+
+elements.exportButton?.addEventListener("click", exportData);
+
+elements.importInput?.addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  if (!file) return;
+  const confirmed = confirm("Все текущие данные будут заменены");
+  if (!confirmed) {
+    event.target.value = "";
+    return;
+  }
+  importData(file);
+  event.target.value = "";
+});
+
 elements.pomodoroStart.addEventListener("click", startPomodoro);
 
 elements.pomodoroPause.addEventListener("click", pausePomodoro);
@@ -603,7 +866,7 @@ elements.pomodoroReset.addEventListener("click", resetPomodoro);
 
 window.addEventListener("load", () => {
   render();
-  if (state.pomodoro.running) {
+  if (SafeTasksState.pomodoro.running) {
     startPomodoro();
   }
 });
