@@ -4,6 +4,7 @@ const STORAGE_KEY = "safetasks-data";
 
 const defaultState = {
   tasks: [],
+  schedule: [],
   achievements: {
     unlocked: [],
   },
@@ -18,18 +19,38 @@ const state = loadState();
 let pomodoroInterval = null;
 
 const elements = {
-  taskForm: document.getElementById("task-form"),
-  taskTitle: document.getElementById("task-title"),
-  taskType: document.getElementById("task-type"),
-  taskList: document.getElementById("task-list"),
-  completedCount: document.getElementById("completed-count"),
-  pendingCount: document.getElementById("pending-count"),
+  taskForms: document.querySelectorAll(".task-form"),
+  countLabels: document.querySelectorAll("[data-count]"),
+  taskLists: {
+    daily: {
+      pending: document.getElementById("daily-task-list"),
+      completed: document.getElementById("daily-completed-list"),
+    },
+    weekly: {
+      pending: document.getElementById("weekly-task-list"),
+      completed: document.getElementById("weekly-completed-list"),
+    },
+    monthly: {
+      pending: document.getElementById("monthly-task-list"),
+      completed: document.getElementById("monthly-completed-list"),
+    },
+    yearly: {
+      pending: document.getElementById("yearly-task-list"),
+      completed: document.getElementById("yearly-completed-list"),
+    },
+  },
   streakCount: document.getElementById("streak-count"),
   completionRate: document.getElementById("completion-rate"),
   periodSelect: document.getElementById("period-select"),
   dailyChart: document.getElementById("daily-chart"),
   weeklyChart: document.getElementById("weekly-chart"),
   achievementList: document.getElementById("achievement-list"),
+  scheduleForm: document.getElementById("schedule-form"),
+  scheduleDay: document.getElementById("schedule-day"),
+  scheduleTime: document.getElementById("schedule-time"),
+  schedulePlace: document.getElementById("schedule-place"),
+  scheduleTask: document.getElementById("schedule-task"),
+  scheduleList: document.getElementById("schedule-list"),
   pomodoroTime: document.getElementById("pomodoro-time"),
   pomodoroState: document.getElementById("pomodoro-state"),
   pomodoroProgress: document.getElementById("pomodoro-progress"),
@@ -116,6 +137,10 @@ function compareTasks(a, b) {
   return new Date(a.dueDate) - new Date(b.dueDate);
 }
 
+function tasksByType(type) {
+  return state.tasks.filter((task) => task.type === type);
+}
+
 function getCompletionStats(periodDays) {
   const now = startOfDay(new Date());
   const start = new Date(now);
@@ -158,7 +183,9 @@ function toggleTask(id) {
 }
 
 function deleteTask(id) {
-  state.tasks = state.tasks.filter((task) => task.id !== id);
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task || task.completed) return;
+  state.tasks = state.tasks.filter((item) => item.id !== id);
   saveState();
   render();
 }
@@ -176,6 +203,52 @@ function editTask(id) {
   task.title = newTitle;
   saveState();
   render();
+}
+
+// --------- Schedule ---------
+
+const dayOrder = [
+  "Понедельник",
+  "Вторник",
+  "Среда",
+  "Четверг",
+  "Пятница",
+  "Суббота",
+  "Воскресенье",
+];
+
+function addScheduleEntry(day, time, place, task) {
+  const entry = {
+    id: crypto.randomUUID(),
+    day,
+    time,
+    place,
+    task,
+  };
+  state.schedule.push(entry);
+  saveState();
+  renderSchedule();
+}
+
+function renderSchedule() {
+  if (!elements.scheduleList) return;
+  elements.scheduleList.innerHTML = "";
+  const sorted = [...state.schedule].sort((a, b) => {
+    const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    if (dayDiff !== 0) return dayDiff;
+    return a.time.localeCompare(b.time);
+  });
+
+  sorted.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "schedule-item";
+    item.innerHTML = `
+      <strong>${entry.day} · ${entry.time}</strong>
+      <span class="task-title">${entry.task}</span>
+      <span class="task-meta">${entry.place}</span>
+    `;
+    elements.scheduleList.appendChild(item);
+  });
 }
 
 // --------- Achievements ---------
@@ -351,45 +424,70 @@ function drawWeeklyChart() {
 // --------- UI ---------
 
 function renderTasks() {
-  elements.taskList.innerHTML = "";
-  const sortedTasks = [...state.tasks].sort(compareTasks);
-  sortedTasks.forEach((task) => {
-    const item = document.createElement("li");
-    item.className = "task-item";
-    if (task.completed) {
-      item.classList.add("completed");
-    }
-    item.innerHTML = `
-      <input type="checkbox" ${task.completed ? "checked" : ""} aria-label="Выполнено" />
-      <div>
-        <div class="task-title">${task.title}</div>
-        <div class="task-meta">
-          <span class="badge">${typeLabel(task.type)}</span>
-          <span>до ${formatDateTime(new Date(task.dueDate))}</span>
-        </div>
-      </div>
-      <div class="actions">
-        <button class="btn ghost" data-action="edit">Редактировать</button>
-        <button class="btn ghost" data-action="delete">Удалить</button>
-      </div>
-    `;
+  Object.entries(elements.taskLists).forEach(([type, lists]) => {
+    lists.pending.innerHTML = "";
+    lists.completed.innerHTML = "";
 
-    const checkbox = item.querySelector("input");
-    checkbox.addEventListener("change", () => {
-      item.classList.add("fade-complete");
-      toggleTask(task.id);
+    const pendingTasks = tasksByType(type).filter((task) => !task.completed).sort(compareTasks);
+    const completed = tasksByType(type)
+      .filter((task) => task.completed)
+      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+    pendingTasks.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "task-item";
+      item.innerHTML = `
+        <input type="checkbox" aria-label="Выполнено" />
+        <div>
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="badge">${typeLabel(task.type)}</span>
+            <span>до ${formatDateTime(new Date(task.dueDate))}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn ghost" data-action="edit">Редактировать</button>
+          <button class="btn ghost" data-action="delete">Удалить</button>
+        </div>
+      `;
+
+      const checkbox = item.querySelector("input");
+      checkbox.addEventListener("change", () => {
+        item.classList.add("fade-complete");
+        toggleTask(task.id);
+      });
+
+      item.querySelector('[data-action="edit"]').addEventListener("click", () => editTask(task.id));
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteTask(task.id));
+
+      lists.pending.appendChild(item);
     });
 
-    item.querySelector('[data-action="edit"]').addEventListener("click", () => editTask(task.id));
-    item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteTask(task.id));
-
-    elements.taskList.appendChild(item);
+    completed.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "task-item is-locked";
+      item.innerHTML = `
+        <div>
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="badge">${typeLabel(task.type)}</span>
+            <span>выполнено ${formatDateTime(new Date(task.completedAt))}</span>
+          </div>
+        </div>
+      `;
+      lists.completed.appendChild(item);
+    });
   });
 }
 
 function renderSummary() {
-  elements.completedCount.textContent = completedTasks().length;
-  elements.pendingCount.textContent = state.tasks.filter((task) => !task.completed).length;
+  elements.countLabels.forEach((label) => {
+    const type = label.dataset.type;
+    const mode = label.dataset.count;
+    const tasks = tasksByType(type);
+    const value = mode === "completed" ? tasks.filter((task) => task.completed).length : tasks.filter((task) => !task.completed).length;
+    label.textContent = value;
+  });
 }
 
 function renderStats() {
@@ -416,6 +514,7 @@ function render() {
   renderSummary();
   renderStats();
   renderAchievements();
+  renderSchedule();
   renderPomodoro();
 }
 
@@ -466,12 +565,28 @@ function resetPomodoro() {
 
 // --------- Events ---------
 
-elements.taskForm.addEventListener("submit", (event) => {
+elements.taskForms.forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const titleInput = form.querySelector(".task-title-input");
+    const title = titleInput.value.trim();
+    if (!title) return;
+    addTask(title, form.dataset.taskType);
+    titleInput.value = "";
+  });
+});
+
+elements.scheduleForm?.addEventListener("submit", (event) => {
   event.preventDefault();
-  const title = elements.taskTitle.value.trim();
-  if (!title) return;
-  addTask(title, elements.taskType.value);
-  elements.taskTitle.value = "";
+  const day = elements.scheduleDay.value;
+  const time = elements.scheduleTime.value;
+  const place = elements.schedulePlace.value.trim();
+  const task = elements.scheduleTask.value.trim();
+  if (!day || !time || !place || !task) return;
+  addScheduleEntry(day, time, place, task);
+  elements.scheduleTime.value = "";
+  elements.schedulePlace.value = "";
+  elements.scheduleTask.value = "";
 });
 
 elements.periodSelect.addEventListener("change", renderStats);

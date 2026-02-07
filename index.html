@@ -14,60 +14,247 @@
         <p class="tagline">Анти‑прокрастинация в киберпанк‑режиме</p>
       </div>
       <nav class="tabs">
-        <button class="tab-button is-active" data-screen="today">Сегодня</button>
+        <button class="tab-button is-active" data-screen="daily">Дневные</button>
+        <button class="tab-button" data-screen="weekly">Недельные</button>
+        <button class="tab-button" data-screen="monthly">Месячные</button>
+        <button class="tab-button" data-screen="yearly">Годовые</button>
+        <button class="tab-button" data-screen="schedule">Расписание</button>
         <button class="tab-button" data-screen="stats">Статистика</button>
       </nav>
     </header>
 
     <main>
-      <section class="screen is-active" id="screen-today">
+      <section class="screen is-active" id="screen-daily">
+        <div class="task-layout">
+          <div class="column">
+            <section class="card">
+              <h2>Новая дневная задача</h2>
+              <form class="task-form" data-task-type="daily">
+                <input type="text" class="task-title-input" placeholder="Что сделать сегодня?" required />
+                <button type="submit" class="btn">Добавить</button>
+              </form>
+              <div class="summary">
+                <div>
+                  <span class="label">Выполнено</span>
+                  <span class="value" data-count="completed" data-type="daily">0</span>
+                </div>
+                <div>
+                  <span class="label">В процессе</span>
+                  <span class="value" data-count="pending" data-type="daily">0</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="card pomodoro">
+              <div class="card__header">
+                <h2>Pomodoro 25/5</h2>
+                <span id="pomodoro-state" class="hint">Фокус</span>
+              </div>
+              <div class="pomodoro__time" id="pomodoro-time">25:00</div>
+              <div class="pomodoro__controls">
+                <button id="pomodoro-start" class="btn">Старт</button>
+                <button id="pomodoro-pause" class="btn ghost">Пауза</button>
+                <button id="pomodoro-reset" class="btn ghost">Сброс</button>
+              </div>
+              <div class="progress">
+                <div id="pomodoro-progress" class="progress__bar"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Дневные задачи</h2>
+                <span class="hint">План на сегодня</span>
+              </div>
+              <ul id="daily-task-list" class="task-list"></ul>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Выполнено</h2>
+                <span class="hint">Удаление недоступно</span>
+              </div>
+              <ul id="daily-completed-list" class="task-list task-list--completed"></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-weekly">
+        <div class="task-layout">
+          <div class="column">
+            <section class="card">
+              <h2>Новая недельная задача</h2>
+              <form class="task-form" data-task-type="weekly">
+                <input type="text" class="task-title-input" placeholder="Что важно на этой неделе?" required />
+                <button type="submit" class="btn">Добавить</button>
+              </form>
+              <div class="summary">
+                <div>
+                  <span class="label">Выполнено</span>
+                  <span class="value" data-count="completed" data-type="weekly">0</span>
+                </div>
+                <div>
+                  <span class="label">В процессе</span>
+                  <span class="value" data-count="pending" data-type="weekly">0</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Недельные задачи</h2>
+                <span class="hint">Фокус недели</span>
+              </div>
+              <ul id="weekly-task-list" class="task-list"></ul>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Выполнено</h2>
+                <span class="hint">Удаление недоступно</span>
+              </div>
+              <ul id="weekly-completed-list" class="task-list task-list--completed"></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-monthly">
+        <div class="task-layout">
+          <div class="column">
+            <section class="card">
+              <h2>Новая месячная задача</h2>
+              <form class="task-form" data-task-type="monthly">
+                <input type="text" class="task-title-input" placeholder="План на месяц" required />
+                <button type="submit" class="btn">Добавить</button>
+              </form>
+              <div class="summary">
+                <div>
+                  <span class="label">Выполнено</span>
+                  <span class="value" data-count="completed" data-type="monthly">0</span>
+                </div>
+                <div>
+                  <span class="label">В процессе</span>
+                  <span class="value" data-count="pending" data-type="monthly">0</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Месячные задачи</h2>
+                <span class="hint">Стратегия месяца</span>
+              </div>
+              <ul id="monthly-task-list" class="task-list"></ul>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Выполнено</h2>
+                <span class="hint">Удаление недоступно</span>
+              </div>
+              <ul id="monthly-completed-list" class="task-list task-list--completed"></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-yearly">
+        <div class="task-layout">
+          <div class="column">
+            <section class="card">
+              <h2>Новая годовая задача</h2>
+              <form class="task-form" data-task-type="yearly">
+                <input type="text" class="task-title-input" placeholder="К чему идти весь год?" required />
+                <button type="submit" class="btn">Добавить</button>
+              </form>
+              <div class="summary">
+                <div>
+                  <span class="label">Выполнено</span>
+                  <span class="value" data-count="completed" data-type="yearly">0</span>
+                </div>
+                <div>
+                  <span class="label">В процессе</span>
+                  <span class="value" data-count="pending" data-type="yearly">0</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Годовые задачи</h2>
+                <span class="hint">Большие цели</span>
+              </div>
+              <ul id="yearly-task-list" class="task-list"></ul>
+            </section>
+          </div>
+
+          <div class="column">
+            <section class="card">
+              <div class="card__header">
+                <h2>Выполнено</h2>
+                <span class="hint">Удаление недоступно</span>
+              </div>
+              <ul id="yearly-completed-list" class="task-list task-list--completed"></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-schedule">
         <div class="grid">
           <section class="card">
-            <h2>Новая задача</h2>
-            <form id="task-form" class="task-form">
-              <input type="text" id="task-title" placeholder="Что сделать?" required />
-              <select id="task-type">
-                <option value="daily">Дневные</option>
-                <option value="weekly">Недельные</option>
-                <option value="monthly">Месячные</option>
-                <option value="yearly">Годовые</option>
-              </select>
+            <h2>Свое расписание на неделю</h2>
+            <form id="schedule-form" class="schedule-form">
+              <label>
+                <span class="label">День недели</span>
+                <select id="schedule-day" required>
+                  <option value="Понедельник">Понедельник</option>
+                  <option value="Вторник">Вторник</option>
+                  <option value="Среда">Среда</option>
+                  <option value="Четверг">Четверг</option>
+                  <option value="Пятница">Пятница</option>
+                  <option value="Суббота">Суббота</option>
+                  <option value="Воскресенье">Воскресенье</option>
+                </select>
+              </label>
+              <label>
+                <span class="label">Время</span>
+                <input type="time" id="schedule-time" required />
+              </label>
+              <label>
+                <span class="label">Место</span>
+                <input type="text" id="schedule-place" placeholder="Где это будет?" required />
+              </label>
+              <label>
+                <span class="label">Задача</span>
+                <input type="text" id="schedule-task" placeholder="Что запланировано?" required />
+              </label>
               <button type="submit" class="btn">Добавить</button>
             </form>
-            <div class="summary">
-              <div>
-                <span class="label">Выполнено</span>
-                <span id="completed-count" class="value">0</span>
-              </div>
-              <div>
-                <span class="label">В процессе</span>
-                <span id="pending-count" class="value">0</span>
-              </div>
-            </div>
           </section>
 
           <section class="card">
             <div class="card__header">
-              <h2>Задачи</h2>
-              <span class="hint">Сортировка по срокам</span>
+              <h2>План недели</h2>
+              <span class="hint">Персональные блоки времени</span>
             </div>
-            <ul id="task-list" class="task-list"></ul>
-          </section>
-
-          <section class="card pomodoro">
-            <div class="card__header">
-              <h2>Pomodoro 25/5</h2>
-              <span id="pomodoro-state" class="hint">Фокус</span>
-            </div>
-            <div class="pomodoro__time" id="pomodoro-time">25:00</div>
-            <div class="pomodoro__controls">
-              <button id="pomodoro-start" class="btn">Старт</button>
-              <button id="pomodoro-pause" class="btn ghost">Пауза</button>
-              <button id="pomodoro-reset" class="btn ghost">Сброс</button>
-            </div>
-            <div class="progress">
-              <div id="pomodoro-progress" class="progress__bar"></div>
-            </div>
+            <ul id="schedule-list" class="schedule-list"></ul>
           </section>
         </div>
       </section>
