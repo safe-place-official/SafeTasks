@@ -414,6 +414,17 @@ select,
   margin: 12px 0 24px;
 }
 
+.xp-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 16px;
+}
+
+.xp-progress {
+  margin-bottom: 12px;
+}
+
 .chart {
   margin-bottom: 20px;
 }
@@ -440,6 +451,80 @@ canvas {
 .achievement.unlocked {
   border-color: var(--neon);
   box-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
+}
+
+.module-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.module-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(0, 255, 102, 0.2);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.module-toggle input {
+  accent-color: var(--neon);
+  width: 18px;
+  height: 18px;
+}
+
+.data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.heatmap {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 6px;
+  padding: 10px 0 18px;
+  overflow-x: auto;
+}
+
+.heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: #050705;
+  border: 1px solid rgba(0, 255, 102, 0.1);
+}
+
+.heatmap-cell.level-0 {
+  background: #050705;
+}
+
+.heatmap-cell.level-1 {
+  background: rgba(0, 255, 102, 0.25);
+}
+
+.heatmap-cell.level-2 {
+  background: rgba(0, 255, 102, 0.55);
+}
+
+.heatmap-cell.level-3 {
+  background: #00ff66;
+  box-shadow: 0 0 8px rgba(0, 255, 102, 0.8);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 footer {

@@ -18,9 +18,10 @@
         <button class="tab-button" data-screen="weekly">Недельные</button>
         <button class="tab-button" data-screen="monthly">Месячные</button>
         <button class="tab-button" data-screen="yearly">Годовые</button>
-        <button class="tab-button" data-screen="pomodoro">Помодоро</button>
+        <button class="tab-button" data-screen="pomodoro" data-module="pomodoro" id="tab-pomodoro">Помодоро</button>
         <button class="tab-button" data-screen="schedule">Расписание</button>
-        <button class="tab-button" data-screen="stats">Статистика</button>
+        <button class="tab-button" data-screen="stats" id="tab-stats">Статистика</button>
+        <button class="tab-button" data-screen="modules">Модули</button>
       </nav>
     </header>
 
@@ -70,7 +71,7 @@
         </div>
       </section>
 
-      <section class="screen" id="screen-pomodoro">
+      <section class="screen" id="screen-pomodoro" data-module="pomodoro">
         <div class="grid">
           <section class="card pomodoro pomodoro--red">
             <div class="card__header">
@@ -289,7 +290,7 @@
 
       <section class="screen" id="screen-stats">
         <div class="grid">
-          <section class="card">
+          <section class="card" data-module="stats">
             <h2>Статистика</h2>
             <div class="stats-row">
               <div>
@@ -319,9 +320,99 @@
             </div>
           </section>
 
-          <section class="card">
+          <section class="card" data-module="xp">
+            <div class="card__header">
+              <h2>XP и уровни</h2>
+              <span class="hint">Только мотивация, без преимуществ</span>
+            </div>
+            <div class="xp-grid">
+              <div>
+                <span class="label">Текущий уровень</span>
+                <span id="xp-level" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">Текущий XP</span>
+                <span id="xp-total" class="value">0</span>
+              </div>
+              <div>
+                <span class="label">До следующего уровня</span>
+                <span id="xp-next" class="value">500 XP</span>
+              </div>
+            </div>
+            <div class="progress xp-progress">
+              <div id="xp-progress-bar" class="progress__bar"></div>
+            </div>
+            <p class="hint">XP начисляется за закрытые задачи: дневные +10, недельные +30, месячные +100.</p>
+          </section>
+
+          <section class="card" data-module="heatmap">
+            <div class="card__header">
+              <h2>Тепловая карта продуктивности</h2>
+              <span class="hint">История закрытых задач по дням</span>
+            </div>
+            <div id="heatmap-grid" class="heatmap"></div>
+            <div class="heatmap-legend">
+              <span class="hint">0</span>
+              <span class="heatmap-cell level-0"></span>
+              <span class="heatmap-cell level-1"></span>
+              <span class="heatmap-cell level-2"></span>
+              <span class="heatmap-cell level-3"></span>
+              <span class="hint">6+</span>
+            </div>
+          </section>
+
+          <section class="card" data-module="achievements">
             <h2>Достижения</h2>
             <ul id="achievement-list" class="achievement-list"></ul>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-modules">
+        <div class="grid">
+          <section class="card">
+            <div class="card__header">
+              <h2>Модули SafeTasks</h2>
+              <span class="hint">Включай только нужные блоки</span>
+            </div>
+            <div class="module-list">
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="pomodoro" />
+                <span>Таймер (Pomodoro)</span>
+              </label>
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="xp" />
+                <span>XP и уровни</span>
+              </label>
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="achievements" />
+                <span>Достижения</span>
+              </label>
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="stats" />
+                <span>Статистика</span>
+              </label>
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="heatmap" />
+                <span>Тепловая карта</span>
+              </label>
+            </div>
+            <p class="hint">Отключённые модули полностью скрываются из интерфейса.</p>
+          </section>
+
+          <section class="card">
+            <div class="card__header">
+              <h2>Экспорт / Импорт данных</h2>
+              <span class="hint">Все данные остаются в этом браузере</span>
+            </div>
+            <div class="data-actions">
+              <button id="export-data" class="btn">Экспорт JSON</button>
+              <label class="btn ghost">
+                Импорт JSON
+                <input id="import-data" type="file" accept="application/json" hidden />
+              </label>
+            </div>
+            <p class="hint">Перед импортом появится предупреждение о замене текущих данных.</p>
           </section>
         </div>
       </section>
