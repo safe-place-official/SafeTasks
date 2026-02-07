@@ -28,6 +28,19 @@ const defaultState = {
     achievements: true,
     stats: true,
     heatmap: true,
+    intel: true,
+  },
+  missions: [],
+  energyBlocks: [],
+  ideas: [],
+  guardrails: {
+    focusLock: true,
+    noMeeting: true,
+    smartBreaks: true,
+    stopAfter9: false,
+  },
+  notes: {
+    weeklyReview: "",
   },
 };
 
@@ -100,6 +113,31 @@ const elements = {
   focusBlocks: document.getElementById("focus-blocks"),
   focusType: document.getElementById("focus-type"),
   focusTip: document.getElementById("focus-tip"),
+  missionForm: document.getElementById("mission-form"),
+  missionTitle: document.getElementById("mission-title"),
+  missionTag: document.getElementById("mission-tag"),
+  missionTarget: document.getElementById("mission-target"),
+  missionDate: document.getElementById("mission-date"),
+  missionList: document.getElementById("mission-list"),
+  loadIndex: document.getElementById("load-index"),
+  loadStatus: document.getElementById("load-status"),
+  riskCount: document.getElementById("risk-count"),
+  focusLane: document.getElementById("focus-lane"),
+  autopilotList: document.getElementById("autopilot-list"),
+  contextTags: document.getElementById("context-tags"),
+  contextTip: document.getElementById("context-tip"),
+  energyForm: document.getElementById("energy-form"),
+  energyPeriod: document.getElementById("energy-period"),
+  energyIntensity: document.getElementById("energy-intensity"),
+  energyType: document.getElementById("energy-type"),
+  energyNote: document.getElementById("energy-note"),
+  energyList: document.getElementById("energy-list"),
+  guardrailToggles: document.querySelectorAll("[data-guardrail]"),
+  guardrailStatus: document.getElementById("guardrail-status"),
+  ideaForm: document.getElementById("idea-form"),
+  ideaInput: document.getElementById("idea-input"),
+  ideaList: document.getElementById("idea-list"),
+  reviewInput: document.getElementById("review-input"),
 };
 
 // --------- Helpers ---------
@@ -143,6 +181,17 @@ function normalizeState(rawState) {
     modules: {
       ...base.modules,
       ...(rawState?.modules || {}),
+    },
+    missions: Array.isArray(rawState?.missions) ? rawState.missions : [],
+    energyBlocks: Array.isArray(rawState?.energyBlocks) ? rawState.energyBlocks : [],
+    ideas: Array.isArray(rawState?.ideas) ? rawState.ideas : [],
+    guardrails: {
+      ...base.guardrails,
+      ...(rawState?.guardrails || {}),
+    },
+    notes: {
+      ...base.notes,
+      ...(rawState?.notes || {}),
     },
   };
   normalized.tasks = Array.isArray(rawState?.tasks)
@@ -283,6 +332,15 @@ function compareTasks(a, b) {
   return new Date(a.dueDate) - new Date(b.dueDate);
 }
 
+function priorityWeight(priority) {
+  const map = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+  return map[priority] ?? 2;
+}
+
 function tasksByType(type) {
   return SafeTasksState.tasks.filter((task) => task.type === type);
 }
@@ -367,6 +425,78 @@ function editTask(id) {
       const delta = xpForType(target.type) - xpForType(previousType);
       draft.xp.total = Math.max(0, draft.xp.total + delta);
     }
+  });
+}
+
+// --------- Missions ---------
+
+function addMission({ title, tag, targetCount, targetDate }) {
+  updateState((draft) => {
+    draft.missions.push({
+      id: crypto.randomUUID(),
+      title,
+      tag,
+      targetCount,
+      targetDate,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+function deleteMission(id) {
+  updateState((draft) => {
+    draft.missions = draft.missions.filter((mission) => mission.id !== id);
+  });
+}
+
+function missionProgress(mission, snapshot = SafeTasksState) {
+  const tag = mission.tag.replace(/^#/, "").toLowerCase();
+  const taggedTasks = snapshot.tasks.filter((task) => task.tags?.some((t) => t.toLowerCase() === tag));
+  const completed = taggedTasks.filter((task) => task.completed).length;
+  return {
+    total: mission.targetCount,
+    completed,
+    taggedCount: taggedTasks.length,
+  };
+}
+
+// --------- Energy Planner ---------
+
+function addEnergyBlock({ period, intensity, type, note }) {
+  updateState((draft) => {
+    draft.energyBlocks.push({
+      id: crypto.randomUUID(),
+      period,
+      intensity,
+      type,
+      note,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+function deleteEnergyBlock(id) {
+  updateState((draft) => {
+    draft.energyBlocks = draft.energyBlocks.filter((block) => block.id !== id);
+  });
+}
+
+// --------- Idea Vault ---------
+
+function addIdea(text) {
+  updateState((draft) => {
+    draft.ideas.unshift({
+      id: crypto.randomUUID(),
+      text,
+      createdAt: new Date().toISOString(),
+    });
+    draft.ideas = draft.ideas.slice(0, 20);
+  });
+}
+
+function deleteIdea(id) {
+  updateState((draft) => {
+    draft.ideas = draft.ideas.filter((idea) => idea.id !== id);
   });
 }
 
@@ -837,6 +967,173 @@ function renderPomodoro() {
   elements.pomodoroProgress.style.width = `${progress}%`;
 }
 
+function renderIntel() {
+  if (!SafeTasksState.modules.intel) return;
+
+  if (elements.missionList) {
+    elements.missionList.innerHTML = "";
+    SafeTasksState.missions.forEach((mission) => {
+      const progress = missionProgress(mission);
+      const percent = mission.targetCount ? Math.min(Math.round((progress.completed / mission.targetCount) * 100), 100) : 0;
+      const item = document.createElement("li");
+      item.className = "mission-item";
+      item.innerHTML = `
+        <div class="mission-header">
+          <strong>${mission.title}</strong>
+          <button class="icon-button" data-action="delete" aria-label="Удалить миссию">✕</button>
+        </div>
+        <div class="mission-meta">
+          <span class="badge badge--tag">#${mission.tag.replace(/^#/, "")}</span>
+          <span class="hint">Дедлайн: ${formatDate(new Date(mission.targetDate))}</span>
+        </div>
+        <div class="mission-progress">
+          <div class="progress">
+            <div class="progress__bar" style="width: ${percent}%;"></div>
+          </div>
+          <span class="hint">${progress.completed}/${mission.targetCount} выполнено · всего задач с тегом: ${progress.taggedCount}</span>
+        </div>
+      `;
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteMission(mission.id));
+      elements.missionList.appendChild(item);
+    });
+  }
+
+  if (elements.loadIndex && elements.loadStatus) {
+    const active = SafeTasksState.tasks.filter((task) => !task.completed);
+    const load = active.reduce((sum, task) => sum + priorityWeight(task.priority), 0);
+    elements.loadIndex.textContent = load;
+    elements.loadStatus.textContent =
+      load >= 18
+        ? "Слишком много задач — урежь список и запланируй отдых."
+        : load >= 10
+          ? "Насыщенный режим. Разбей задачи на блоки."
+          : "Загрузка сбалансирована.";
+  }
+
+  if (elements.riskCount) {
+    const active = SafeTasksState.tasks.filter((task) => !task.completed);
+    const risk = active.filter((task) => dueState(task) === "overdue" || task.priority === "high").length;
+    elements.riskCount.textContent = risk;
+  }
+
+  if (elements.focusLane) {
+    const active = SafeTasksState.tasks.filter((task) => !task.completed);
+    const typeCount = active.reduce((acc, task) => {
+      acc[task.type] = (acc[task.type] || 0) + 1;
+      return acc;
+    }, {});
+    const topType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    elements.focusLane.textContent = topType ? typeLabel(topType) : "—";
+  }
+
+  if (elements.autopilotList) {
+    const nextTasks = SafeTasksState.tasks
+      .filter((task) => !task.completed)
+      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || compareTasks(a, b))
+      .slice(0, 5);
+    elements.autopilotList.innerHTML = "";
+    nextTasks.forEach((task) => {
+      const item = document.createElement("li");
+      item.className = "task-item";
+      item.innerHTML = `
+        <div>
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="badge badge--priority-${task.priority}">${priorityLabel(task.priority)}</span>
+            <span>до ${formatDateTime(new Date(task.dueDate))}</span>
+          </div>
+        </div>
+      `;
+      elements.autopilotList.appendChild(item);
+    });
+  }
+
+  if (elements.contextTags && elements.contextTip) {
+    const tagCounts = SafeTasksState.tasks.reduce((acc, task) => {
+      task.tags?.forEach((tag) => {
+        const key = tag.toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
+      });
+      return acc;
+    }, {});
+    const entries = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    elements.contextTags.innerHTML = "";
+    if (!entries.length) {
+      elements.contextTip.textContent = "Добавь теги задач, чтобы видеть карту контекста.";
+    } else {
+      elements.contextTip.textContent = "Выбери 1–2 ключевых контекста и сфокусируйся.";
+    }
+    entries.forEach(([tag, count]) => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = `#${tag} · ${count}`;
+      elements.contextTags.appendChild(chip);
+    });
+  }
+
+  if (elements.energyList) {
+    elements.energyList.innerHTML = "";
+    SafeTasksState.energyBlocks.forEach((block) => {
+      const item = document.createElement("li");
+      item.className = "energy-item";
+      item.innerHTML = `
+        <div>
+          <strong>${block.period}</strong>
+          <span class="badge">${block.intensity}</span>
+          <span class="badge badge--tag">${block.type}</span>
+          ${block.note ? `<p class="hint">${block.note}</p>` : ""}
+        </div>
+        <button class="icon-button" data-action="delete" aria-label="Удалить слот">✕</button>
+      `;
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteEnergyBlock(block.id));
+      elements.energyList.appendChild(item);
+    });
+  }
+
+  elements.guardrailToggles.forEach((toggle) => {
+    const key = toggle.dataset.guardrail;
+    toggle.checked = Boolean(SafeTasksState.guardrails[key]);
+  });
+
+  if (elements.guardrailStatus) {
+    elements.guardrailStatus.innerHTML = "";
+    const statusMap = {
+      focusLock: "Deep‑work lock",
+      noMeeting: "No‑meeting окно",
+      smartBreaks: "Авто‑перерывы",
+      stopAfter9: "Блок после 21:00",
+    };
+    Object.entries(statusMap).forEach(([key, label]) => {
+      const active = SafeTasksState.guardrails[key];
+      const item = document.createElement("div");
+      item.className = `status-pill ${active ? "is-on" : "is-off"}`;
+      item.textContent = `${label}: ${active ? "включено" : "выключено"}`;
+      elements.guardrailStatus.appendChild(item);
+    });
+  }
+
+  if (elements.ideaList) {
+    elements.ideaList.innerHTML = "";
+    SafeTasksState.ideas.forEach((idea) => {
+      const item = document.createElement("li");
+      item.className = "idea-item";
+      item.innerHTML = `
+        <div>
+          <strong>${idea.text}</strong>
+          <span class="hint">${formatDateTime(new Date(idea.createdAt))}</span>
+        </div>
+        <button class="icon-button" data-action="delete" aria-label="Удалить идею">✕</button>
+      `;
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteIdea(idea.id));
+      elements.ideaList.appendChild(item);
+    });
+  }
+
+  if (elements.reviewInput) {
+    elements.reviewInput.value = SafeTasksState.notes.weeklyReview || "";
+  }
+}
+
 function render() {
   applyTheme();
   updateTodayDate();
@@ -854,6 +1151,7 @@ function render() {
   renderModuleToggles();
   applyModuleVisibility();
   renderDashboard();
+  renderIntel();
 }
 
 function renderModuleToggles() {
@@ -897,6 +1195,11 @@ function applyModuleVisibility() {
 
   if (elements.pomodoroTab) {
     elements.pomodoroTab.classList.toggle("is-hidden", !modules.pomodoro);
+  }
+
+  const intelTab = document.getElementById("tab-intel");
+  if (intelTab) {
+    intelTab.classList.toggle("is-hidden", !modules.intel);
   }
 
   const active = document.querySelector(".tab-button.is-active");
@@ -1108,6 +1411,55 @@ elements.clearSearch?.addEventListener("click", () => {
 elements.themeToggle?.addEventListener("click", () => {
   updateState((draft) => {
     draft.ui.theme = draft.ui.theme === "light" ? "dark" : "light";
+  });
+});
+
+elements.missionForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const title = elements.missionTitle.value.trim();
+  const tag = elements.missionTag.value.trim().replace(/^#/, "");
+  const targetCount = Number(elements.missionTarget.value);
+  const targetDate = elements.missionDate.value;
+  if (!title || !tag || !targetCount || !targetDate) return;
+  addMission({ title, tag, targetCount, targetDate });
+  elements.missionTitle.value = "";
+  elements.missionTag.value = "";
+  elements.missionTarget.value = "";
+  elements.missionDate.value = "";
+});
+
+elements.energyForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const period = elements.energyPeriod.value;
+  const intensity = elements.energyIntensity.value;
+  const type = elements.energyType.value;
+  const note = elements.energyNote.value.trim();
+  if (!period || !intensity || !type) return;
+  addEnergyBlock({ period, intensity, type, note });
+  elements.energyNote.value = "";
+});
+
+elements.guardrailToggles.forEach((toggle) => {
+  toggle.addEventListener("change", () => {
+    const key = toggle.dataset.guardrail;
+    updateState((draft) => {
+      draft.guardrails[key] = toggle.checked;
+    });
+  });
+});
+
+elements.ideaForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const text = elements.ideaInput.value.trim();
+  if (!text) return;
+  addIdea(text);
+  elements.ideaInput.value = "";
+});
+
+elements.reviewInput?.addEventListener("input", (event) => {
+  const value = event.target.value;
+  updateState((draft) => {
+    draft.notes.weeklyReview = value;
   });
 });
 

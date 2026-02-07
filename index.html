@@ -43,6 +43,7 @@
         <button class="tab-button" data-screen="pomodoro" data-module="pomodoro" id="tab-pomodoro">Помодоро</button>
         <button class="tab-button" data-screen="schedule">Расписание</button>
         <button class="tab-button" data-screen="stats" id="tab-stats">Статистика</button>
+        <button class="tab-button" data-screen="intel" data-module="intel" id="tab-intel">Интеллект</button>
         <button class="tab-button" data-screen="modules">Модули</button>
       </nav>
     </header>
@@ -525,6 +526,145 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-intel" data-module="intel">
+        <div class="grid intel-grid">
+          <section class="card mission-control">
+            <div class="card__header">
+              <h2>Mission Control</h2>
+              <span class="hint">Цели с прогрессом по тегам</span>
+            </div>
+            <form id="mission-form" class="mission-form">
+              <div class="form-row">
+                <input id="mission-title" type="text" placeholder="Название миссии" required />
+                <input id="mission-tag" type="text" placeholder="#тег" required />
+              </div>
+              <div class="form-row">
+                <input id="mission-target" type="number" min="1" placeholder="Цель задач" required />
+                <input id="mission-date" type="date" required />
+              </div>
+              <button type="submit" class="btn">Добавить миссию</button>
+            </form>
+            <ul id="mission-list" class="mission-list"></ul>
+          </section>
+
+          <section class="card autopilot">
+            <div class="card__header">
+              <h2>Автопилот</h2>
+              <span class="hint">Подсказки на ближайшие 24 часа</span>
+            </div>
+            <div class="autopilot-grid">
+              <div>
+                <span class="label">Индекс нагрузки</span>
+                <span id="load-index" class="value">0</span>
+                <p id="load-status" class="hint">Загрузка сбалансирована.</p>
+              </div>
+              <div>
+                <span class="label">Риск‑радар</span>
+                <span id="risk-count" class="value">0</span>
+                <p class="hint">Просроченные и критичные задачи.</p>
+              </div>
+              <div>
+                <span class="label">Фокус‑полоса</span>
+                <span id="focus-lane" class="value">—</span>
+                <p class="hint">Тип задач с максимальным потенциалом.</p>
+              </div>
+            </div>
+            <div class="autopilot-block">
+              <h3>Следующие действия</h3>
+              <ul id="autopilot-list" class="task-list task-list--compact"></ul>
+            </div>
+          </section>
+
+          <section class="card context-map">
+            <div class="card__header">
+              <h2>Context Map</h2>
+              <span class="hint">Топ‑теги и их вес</span>
+            </div>
+            <div id="context-tags" class="chip-group"></div>
+            <p id="context-tip" class="hint">Добавляй теги, чтобы строить фокус‑сессии.</p>
+          </section>
+
+          <section class="card energy-planner">
+            <div class="card__header">
+              <h2>Energy Planner</h2>
+              <span class="hint">Слоты энергии для задач</span>
+            </div>
+            <form id="energy-form" class="energy-form">
+              <div class="form-row">
+                <select id="energy-period" required>
+                  <option value="Утро">Утро</option>
+                  <option value="День">День</option>
+                  <option value="Вечер">Вечер</option>
+                  <option value="Ночь">Ночь</option>
+                </select>
+                <select id="energy-intensity" required>
+                  <option value="Высокая">Высокая энергия</option>
+                  <option value="Средняя" selected>Средняя энергия</option>
+                  <option value="Низкая">Низкая энергия</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <select id="energy-type" required>
+                  <option value="Deep">Deep work</option>
+                  <option value="Shallow">Рутинные</option>
+                  <option value="Creative">Креативные</option>
+                </select>
+                <input id="energy-note" type="text" placeholder="Заметка (например, только дизайн)" />
+              </div>
+              <button type="submit" class="btn">Добавить слот</button>
+            </form>
+            <ul id="energy-list" class="energy-list"></ul>
+          </section>
+
+          <section class="card guardrails">
+            <div class="card__header">
+              <h2>Guardrails</h2>
+              <span class="hint">Безопасные ограничения</span>
+            </div>
+            <div class="guardrail-list">
+              <label class="guardrail-toggle">
+                <input type="checkbox" data-guardrail="focusLock" />
+                <span>Deep‑work lock (блок отвлечений)</span>
+              </label>
+              <label class="guardrail-toggle">
+                <input type="checkbox" data-guardrail="noMeeting" />
+                <span>No‑meeting окно 10:00‑12:00</span>
+              </label>
+              <label class="guardrail-toggle">
+                <input type="checkbox" data-guardrail="smartBreaks" />
+                <span>Авто‑перерывы каждые 90 минут</span>
+              </label>
+              <label class="guardrail-toggle">
+                <input type="checkbox" data-guardrail="stopAfter9" />
+                <span>Блок задач после 21:00</span>
+              </label>
+            </div>
+            <div id="guardrail-status" class="status-stack"></div>
+          </section>
+
+          <section class="card idea-vault">
+            <div class="card__header">
+              <h2>Idea Vault</h2>
+              <span class="hint">Инкубатор идей</span>
+            </div>
+            <form id="idea-form" class="idea-form">
+              <input id="idea-input" type="text" placeholder="Схватить идею за 3 секунды" required />
+              <button type="submit" class="btn">Сохранить</button>
+            </form>
+            <ul id="idea-list" class="idea-list"></ul>
+          </section>
+
+          <section class="card review">
+            <div class="card__header">
+              <h2>Weekly Review</h2>
+              <span class="hint">Что усилить на следующей неделе</span>
+            </div>
+            <textarea id="review-input" rows="7" placeholder="Коротко: что сработало, что мешало, 1 эксперимент."></textarea>
+            <p class="hint">Сохраняется локально и доступно при следующем запуске.</p>
+          </section>
+        </div>
+      </section>
+
       <section class="screen" id="screen-modules">
         <div class="grid">
           <section class="card">
@@ -552,6 +692,10 @@
               <label class="module-toggle">
                 <input type="checkbox" data-module-toggle="heatmap" />
                 <span>Тепловая карта</span>
+              </label>
+              <label class="module-toggle">
+                <input type="checkbox" data-module-toggle="intel" />
+                <span>Интеллект</span>
               </label>
             </div>
             <p class="hint">Отключённые модули полностью скрываются из интерфейса.</p>
